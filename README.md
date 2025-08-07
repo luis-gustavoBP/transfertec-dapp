@@ -1,8 +1,21 @@
 # UNESP Tech - DApp de Transferência de Tecnologia
 
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![Ethers.js](https://img.shields.io/badge/Ethers.js-6.15-orange?style=for-the-badge)](https://docs.ethers.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
 ## 🏆 Hacka Transferência de Tecnologia UNESP 2025
 
 Uma plataforma blockchain revolucionária para tokenização e licenciamento de tecnologias da UNESP como NFTs (ERC-721), facilitando a transferência de tecnologia entre universidades e setor produtivo.
+
+## 🔗 Links Rápidos
+
+- 🌐 **Demo**: [http://localhost:3000](http://localhost:3000) (após `npm run dev`)
+- 📖 **Documentação**: [README.md](README.md)
+- 🚀 **Deploy**: [GitHub Pages](https://luis-gustavoBP.github.io/transfertec-dapp/)
+- 📋 **Issues**: [GitHub Issues](https://github.com/luis-gustavoBP/transfertec-dapp/issues)
 
 ## 🚀 Funcionalidades
 
