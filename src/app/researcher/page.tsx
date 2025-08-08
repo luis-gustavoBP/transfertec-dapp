@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/Card'
 import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Technology, TechStatus, UserRole } from '@/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatAddress } from '@/lib/utils';
 import { getNftContract } from '@/lib/contract';
 import { ethers } from 'ethers';
 
@@ -42,7 +42,7 @@ const mockUserTechnologies: Technology[] = [
 
 export default function ResearcherPage() {
   const { state } = useWeb3();
-  const [activeTab, setActiveTab] = useState<'technologies' | 'register' | 'earnings'>('technologies');
+  const [activeTab, setActiveTab] = useState<'technologies' | 'register' | 'licenses' | 'earnings'>('technologies');
 
   // Form state para registro
   const [name, setName] = useState('');
@@ -53,6 +53,16 @@ export default function ResearcherPage() {
   const [exclusive, setExclusive] = useState(false);
   const [registerMsg, setRegisterMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Licenças (reutilizando método de eventos do AUIN)
+  const [myLicensed, setMyLicensed] = useState<Array<{
+    licensee: string;
+    tokenId: string;
+    technologyId: string;
+    price: string;
+    txHash: string;
+  }>>([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
 
   // Redirect if not researcher
   if (state.isConnected && state.user?.role !== UserRole.RESEARCHER) {
@@ -76,6 +86,7 @@ export default function ResearcherPage() {
   const tabs = [
     { id: 'technologies', label: 'Minhas Tecnologias', icon: '🔬' },
     { id: 'register', label: 'Registrar Nova', icon: '➕' },
+    { id: 'licenses', label: 'Licenças', icon: '📜' },
     { id: 'earnings', label: 'Receitas', icon: '💰' },
   ];
 
@@ -87,7 +98,7 @@ export default function ResearcherPage() {
       const tokenId = Math.floor(Math.random() * 1e6).toString();
       const tokenURI = `ipfs://${name.toLowerCase().replace(/\s+/g, '-')}-${tokenId}`;
 
-      // Se for owner, registrar diretamente no contrato
+      // Se for owner, registrar diretamente no contrato (reutilizando fluxo do AUIN)
       const contract = await getNftContract();
       const owner = await contract.owner();
       const isOwner = state.address?.toLowerCase() === owner.toLowerCase();
@@ -114,6 +125,40 @@ export default function ResearcherPage() {
       setRegisterMsg(e?.message || 'Falha ao registrar');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLoadMyLicensed = async () => {
+    setLoadingLicenses(true);
+    try {
+      const contract = await getNftContract();
+      // Buscar eventos Licensed (mesma abordagem do AUIN)
+      const filter = await (contract as any).filters?.Licensed?.();
+      const logs = filter
+        ? await contract.queryFilter(filter, 0, 'latest')
+        : await contract.queryFilter('Licensed', 0, 'latest');
+
+      // Mapear eventos
+      let items = logs.map((log: any) => {
+        const { args, transactionHash } = log;
+        return {
+          licensee: args?.licensee as string,
+          tokenId: (args?.tokenId as bigint).toString(),
+          technologyId: (args?.technologyId as bigint).toString(),
+          price: ethers.formatEther(args?.priceWei as bigint),
+          txHash: transactionHash as string,
+        };
+      }).reverse();
+
+      // Filtrar pelos technologyIds do pesquisador (mock)
+      const myTechIds = new Set(mockUserTechnologies.map((t) => t.tokenId));
+      items = items.filter((x) => myTechIds.has(x.technologyId));
+
+      setMyLicensed(items);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLicenses(false);
     }
   };
 
@@ -332,6 +377,43 @@ export default function ResearcherPage() {
     </div>
   );
 
+  const renderLicensesTab = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Licenças das Minhas Tecnologias</h2>
+        <Button onClick={handleLoadMyLicensed} isLoading={loadingLicenses}>Atualizar</Button>
+      </div>
+      {myLicensed.length === 0 && (
+        <p className="text-sm text-gray-600">Nenhuma licença encontrada. Clique em Atualizar para buscar eventos.</p>
+      )}
+      <div className="space-y-3">
+        {myLicensed.map((item, idx) => (
+          <Card key={`${item.txHash}-${idx}`}>
+            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <div>
+                <div className="text-gray-500">Licensee</div>
+                <div className="font-medium">{formatAddress(item.licensee)}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Technology</div>
+                <div className="font-medium">#{item.technologyId}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Token ID</div>
+                <div className="font-medium">#{item.tokenId}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Preço</div>
+                <div className="font-medium">{item.price} ETH</div>
+              </div>
+              <div className="text-xs text-gray-500 break-all">{item.txHash}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderEarningsTab = () => (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-900">
@@ -416,6 +498,7 @@ export default function ResearcherPage() {
       {/* Tab Content */}
       {activeTab === 'technologies' && renderTechnologiesTab()}
       {activeTab === 'register' && renderRegisterTab()}
+      {activeTab === 'licenses' && renderLicensesTab()}
       {activeTab === 'earnings' && renderEarningsTab()}
     </div>
   );
