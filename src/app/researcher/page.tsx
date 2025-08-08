@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Technology, TechStatus, UserRole } from '@/types';
 import { formatDate, formatAddress } from '@/lib/utils';
-import { getNftContract } from '@/lib/contract';
+import { getNftContract, getNftContractReadOnly } from '@/lib/contract';
 import { ethers } from 'ethers';
 
 // Dados mockados para demonstração
@@ -44,6 +44,37 @@ export default function ResearcherPage() {
   const { state } = useWeb3();
   const [activeTab, setActiveTab] = useState<'technologies' | 'register' | 'licenses' | 'earnings'>('technologies');
 
+  // Roles on-chain
+  const [isResearcherOnchain, setIsResearcherOnchain] = useState(false);
+  const [isOwnerOnchain, setIsOwnerOnchain] = useState(false);
+  const [checkedRoles, setCheckedRoles] = useState(false);
+
+  useEffect(() => {
+    const checkRoles = async () => {
+      setCheckedRoles(false);
+      setIsResearcherOnchain(false);
+      setIsOwnerOnchain(false);
+      try {
+        if (!state.isConnected || !state.address) {
+          setCheckedRoles(true);
+          return;
+        }
+        const contract = getNftContractReadOnly();
+        const owner = await contract.owner();
+        setIsOwnerOnchain(owner.toLowerCase() === state.address.toLowerCase());
+        try {
+          const res: boolean = await contract.isResearcher(state.address);
+          setIsResearcherOnchain(!!res);
+        } catch {
+          setIsResearcherOnchain(false);
+        }
+      } finally {
+        setCheckedRoles(true);
+      }
+    };
+    checkRoles();
+  }, [state.isConnected, state.address]);
+
   // Form state para registro
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
@@ -53,6 +84,12 @@ export default function ResearcherPage() {
   const [exclusive, setExclusive] = useState(false);
   const [registerMsg, setRegisterMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Upload de relatório/documentação (IPFS via Web3.Storage)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedCid, setUploadedCid] = useState<string | null>(null);
 
   // Licenças (reutilizando método de eventos do AUIN)
   const [myLicensed, setMyLicensed] = useState<Array<{
@@ -64,8 +101,11 @@ export default function ResearcherPage() {
   }>>([]);
   const [loadingLicenses, setLoadingLicenses] = useState(false);
 
-  // Redirect if not researcher
-  if (state.isConnected && state.user?.role !== UserRole.RESEARCHER) {
+  const isResearcherAllowed =
+    state.user?.role === UserRole.RESEARCHER || isResearcherOnchain || isOwnerOnchain;
+
+  // Restrição de acesso após checagem
+  if (state.isConnected && checkedRoles && !isResearcherAllowed) {
     return (
       <div className="container py-8">
         <Card>
@@ -75,7 +115,7 @@ export default function ResearcherPage() {
               Acesso Restrito
             </h2>
             <p className="text-gray-600">
-              Esta área é exclusiva para pesquisadores da UNESP.
+              Esta área é exclusiva para pesquisadores (ou owner) autorizados pela AUIN.
             </p>
           </CardContent>
         </Card>
@@ -90,13 +130,75 @@ export default function ResearcherPage() {
     { id: 'earnings', label: 'Receitas', icon: '💰' },
   ];
 
+  const uploadToWeb3Storage = async (file: File): Promise<string> => {
+    const token = process.env.NEXT_PUBLIC_WEB3_STORAGE_TOKEN;
+    if (!token) {
+      throw new Error('Token do Web3.Storage não configurado (NEXT_PUBLIC_WEB3_STORAGE_TOKEN)');
+    }
+    const res = await fetch('https://api.web3.storage/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/octet-stream',
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Falha no upload: ${res.status} ${txt}`);
+    }
+    const data = await res.json();
+    return data.cid as string;
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError(null);
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+    setUploadedCid(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setUploadError(null);
+    const file = e.dataTransfer.files?.[0] || null;
+    setSelectedFile(file);
+    setUploadedCid(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setUploadError('Selecione um arquivo primeiro');
+      return;
+    }
+    try {
+      setUploading(true);
+      setUploadError(null);
+      const cid = await uploadToWeb3Storage(selectedFile);
+      setUploadedCid(cid);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Falha ao fazer upload');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmitTechnology = async () => {
     setRegisterMsg(null);
     setIsSubmitting(true);
     try {
-      // Gerar metadados mock (em produção: enviar para IPFS e obter tokenURI)
-      const tokenId = Math.floor(Math.random() * 1e6).toString();
-      const tokenURI = `ipfs://${name.toLowerCase().replace(/\s+/g, '-')}-${tokenId}`;
+      // Definir tokenURI baseado no upload, se existir
+      let tokenURI: string;
+      if (uploadedCid) {
+        tokenURI = `ipfs://${uploadedCid}`;
+      } else {
+        const tokenIdTmp = Math.floor(Math.random() * 1e6).toString();
+        tokenURI = `ipfs://${name.toLowerCase().replace(/\s+/g, '-')}-${tokenIdTmp}`;
+      }
 
       // Se for owner, registrar diretamente no contrato (reutilizando fluxo do AUIN)
       const contract = await getNftContract();
@@ -104,8 +206,9 @@ export default function ResearcherPage() {
       const isOwner = state.address?.toLowerCase() === owner.toLowerCase();
 
       if (isOwner) {
+        const tokenId = BigInt(Math.floor(Math.random() * 1e6));
         const priceWei = ethers.parseEther(priceEth);
-        const tx = await contract.registerTechnology(BigInt(tokenId), tokenURI, priceWei, exclusive);
+        const tx = await contract.registerTechnology(tokenId, tokenURI, priceWei, exclusive);
         await tx.wait();
         setRegisterMsg('Tecnologia registrada no contrato (owner).');
       } else {
@@ -113,13 +216,14 @@ export default function ResearcherPage() {
         setRegisterMsg('Submissão enviada para AUIN (aguardando aprovação).');
       }
 
-      // Reset simples
+      // Reset simples (mantém CID para referência)
       setName('');
       setCategory('');
       setDescription('');
       setPriceEth('0.001');
       setRoyaltyRate(5);
       setExclusive(false);
+      setSelectedFile(null);
 
     } catch (e: any) {
       setRegisterMsg(e?.message || 'Falha ao registrar');
@@ -347,15 +451,51 @@ export default function ResearcherPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Documentação (IPFS)
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <div className="text-gray-400 text-4xl mb-2">📎</div>
-              <p className="text-sm text-gray-600">
-                Arraste arquivos aqui ou clique para fazer upload
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                PDF, DOC, DOCX até 10MB
-              </p>
+            <div
+              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => document.getElementById('fileInput')?.click()}
+            >
+              {!selectedFile && !uploadedCid && (
+                <>
+                  <div className="text-gray-400 text-4xl mb-2">📎</div>
+                  <p className="text-sm text-gray-600">Arraste arquivos aqui ou clique para fazer upload</p>
+                  <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX até 10MB</p>
+                </>
+              )}
+
+              {selectedFile && !uploadedCid && (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-700">Selecionado: <span className="font-medium">{selectedFile.name}</span> ({(selectedFile.size/1024/1024).toFixed(2)} MB)</p>
+                  <div className="flex gap-2 justify-center">
+                    <Button size="sm" onClick={handleUpload} isLoading={uploading} disabled={uploading}>Enviar</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setSelectedFile(null); setUploadError(null); }}>Remover</Button>
+                  </div>
+                  {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+                </div>
+              )}
+
+              {uploadedCid && (
+                <div className="space-y-2">
+                  <p className="text-sm text-green-700">Arquivo armazenado no IPFS</p>
+                  <p className="text-xs text-gray-700 break-all">CID: {uploadedCid}</p>
+                  <a
+                    className="text-xs text-primary-700 underline"
+                    href={`https://w3s.link/ipfs/${uploadedCid}`}
+                    target="_blank" rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Abrir no gateway
+                  </a>
+                </div>
+              )}
+
+              <input id="fileInput" type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileInput} />
             </div>
+            {!process.env.NEXT_PUBLIC_WEB3_STORAGE_TOKEN && (
+              <p className="text-xs text-yellow-700 mt-2">⚠️ Defina NEXT_PUBLIC_WEB3_STORAGE_TOKEN para habilitar upload ao IPFS.</p>
+            )}
           </div>
 
           {registerMsg && (

@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/luisgustavobp/Documents/ic/Transfertec/contracts/TransfertecNFT.sol": {
-      "lastModificationDate": 1754627445639,
-      "contentHash": "0f7b7c7ed8a0b1a1ca3ced8008544e71",
+      "lastModificationDate": 1754631038284,
+      "contentHash": "0a145bf8b8a480eec34eb7189f2f495c",
       "sourceName": "contracts/TransfertecNFT.sol",
       "solcConfig": {
         "version": "0.8.24",

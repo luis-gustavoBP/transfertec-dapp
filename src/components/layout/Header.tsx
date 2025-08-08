@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWeb3 } from '@/contexts/Web3Context';
 import WalletConnect from '@/components/web3/WalletConnect';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types';
+import { getNftContractReadOnly } from '@/lib/contract';
 
 interface NavLinkProps {
   href: string;
@@ -33,22 +34,52 @@ function NavLink({ href, children, isActive }: NavLinkProps) {
 export default function Header() {
   const pathname = usePathname();
   const { state } = useWeb3();
+  const [isOwner, setIsOwner] = useState(false);
+  const [isResearcher, setIsResearcher] = useState(false);
+
+  useEffect(() => {
+    const checkRoles = async () => {
+      try {
+        if (!state.isConnected || !state.address) {
+          setIsOwner(false);
+          setIsResearcher(false);
+          return;
+        }
+        const contract = getNftContractReadOnly();
+        const ownerAddr: string = await contract.owner();
+        setIsOwner(ownerAddr.toLowerCase() === state.address.toLowerCase());
+        try {
+          const res: boolean = await contract.isResearcher(state.address);
+          setIsResearcher(!!res);
+        } catch {
+          setIsResearcher(false);
+        }
+      } catch {
+        setIsOwner(false);
+        setIsResearcher(false);
+      }
+    };
+    checkRoles();
+  }, [state.isConnected, state.address]);
 
   // Navegação principal sempre visível
   const baseItems = [
     { href: '/', label: 'Home' },
     { href: '/marketplace', label: 'Marketplace' },
-    { href: '/auin', label: 'AUIN' },
     { href: '/reports', label: 'Relatórios' },
   ];
 
-  // Itens adicionais contextuais por papel (mantidos se quiser destacar)
-  const roleItems: Array<{ href: string; label: string }> = [];
-  if (state.isConnected && state.user?.role === UserRole.RESEARCHER) {
-    roleItems.push({ href: '/researcher', label: 'Pesquisador' });
+  const navigationItems = [...baseItems];
+
+  // Mostrar AUIN apenas para owner
+  if (isOwner) {
+    navigationItems.push({ href: '/auin', label: 'AUIN' });
   }
 
-  const navigationItems = [...baseItems, ...roleItems];
+  // Mostrar Pesquisador se on-chain researcher ou se contexto indicar (fallback)
+  if (isResearcher || state.user?.role === UserRole.RESEARCHER) {
+    navigationItems.push({ href: '/researcher', label: 'Pesquisador' });
+  }
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
