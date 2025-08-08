@@ -70,6 +70,7 @@ const mockApprovedTechnologies: Technology[] = [
 ];
 
 function RoleManager({ isOwner }: { isOwner: boolean }) {
+  const { state } = useWeb3();
   const [addr, setAddr] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -78,13 +79,51 @@ function RoleManager({ isOwner }: { isOwner: boolean }) {
     setMsg(null);
     setLoading(true);
     try {
-      if (!isOwner) throw new Error('Apenas owner');
+      if (!isOwner) throw new Error('Apenas o owner do contrato pode gerenciar papéis');
+      
+      // Validar endereço
+      if (!addr || addr === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Endereço inválido');
+      }
+      
+      // Verificar se é um endereço válido
+      if (!addr.startsWith('0x') || addr.length !== 42) {
+        throw new Error('Formato de endereço inválido (deve ser 0x + 40 caracteres hex)');
+      }
+
       const contract = await getNftContract();
+      
+      // Verificar se é realmente o owner
+      const contractOwner = await contract.owner();
+      if (contractOwner.toLowerCase() !== state.address?.toLowerCase()) {
+        throw new Error('Você não é o owner do contrato');
+      }
+
+      console.log(`Executando ${action} para endereço:`, addr);
       const tx = await (contract as any)[action](addr);
       await tx.wait();
-      setMsg(`Sucesso: ${action}`);
+      setMsg(`✅ Sucesso: ${action} executado para ${addr.slice(0, 6)}...${addr.slice(-4)}`);
+      setAddr(''); // Limpar campo após sucesso
     } catch (e: any) {
-      setMsg(e?.message || 'Falha na operação');
+      console.error('Erro na operação:', e);
+      let errorMsg = e?.message || 'Falha na operação';
+      
+      // Traduzir erros comuns do contrato
+      if (errorMsg.includes('Already researcher')) {
+        errorMsg = 'Este endereço já é um pesquisador';
+      } else if (errorMsg.includes('Not a researcher')) {
+        errorMsg = 'Este endereço não é um pesquisador';
+      } else if (errorMsg.includes('Already company')) {
+        errorMsg = 'Este endereço já é uma empresa';
+      } else if (errorMsg.includes('Not a company')) {
+        errorMsg = 'Este endereço não é uma empresa';
+      } else if (errorMsg.includes('Invalid address')) {
+        errorMsg = 'Endereço inválido (não pode ser zero)';
+      } else if (errorMsg.includes('CALL_EXCEPTION')) {
+        errorMsg = 'Erro na execução do contrato - verifique se é o owner e se o endereço é válido';
+      }
+      
+      setMsg(`❌ ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -109,7 +148,16 @@ function RoleManager({ isOwner }: { isOwner: boolean }) {
           <Button size="sm" variant="secondary" onClick={() => handle('addCompany')} disabled={!isOwner || loading} isLoading={loading}>Adicionar Empresa</Button>
           <Button size="sm" variant="outline" onClick={() => handle('removeCompany')} disabled={!isOwner || loading} isLoading={loading}>Remover Empresa</Button>
         </div>
-        {msg && <p className="text-sm text-gray-600">{msg}</p>}
+        {msg && (
+          <div className={`p-3 rounded-md text-sm ${msg.includes('❌') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            {msg}
+          </div>
+        )}
+        {!isOwner && (
+          <div className="p-3 bg-yellow-50 text-yellow-700 rounded-md text-sm">
+            ⚠️ Conecte como owner do contrato para gerenciar papéis
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -3,7 +3,7 @@ export const SEPOLIA_CHAIN_ID = 11155111;
 export const SEPOLIA_RPC_URL = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_KEY';
 
 // Configurações do contrato (atualizar com endereços reais após deploy)
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0xce013CB41e11204613A07Cc8ECc4d9e2A20B2147';
 
 // Importar ABI do arquivo gerado pelo deploy
 let CONTRACT_ABI: any[] = [];
