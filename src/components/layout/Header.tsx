@@ -34,31 +34,21 @@ export default function Header() {
   const pathname = usePathname();
   const { state } = useWeb3();
 
-  // Navegação baseada no papel do usuário
-  const getNavigationItems = () => {
-    if (!state.isConnected || !state.user) {
-      return [
-        { href: '/', label: 'Home' },
-        { href: '/marketplace', label: 'Marketplace' },
-      ];
-    }
+  // Navegação principal sempre visível
+  const baseItems = [
+    { href: '/', label: 'Home' },
+    { href: '/marketplace', label: 'Marketplace' },
+    { href: '/auin', label: 'AUIN' },
+    { href: '/reports', label: 'Relatórios' },
+  ];
 
-    const role = state.user.role;
-    const items = [
-      { href: '/', label: 'Home' },
-      { href: '/marketplace', label: 'Marketplace' },
-    ];
+  // Itens adicionais contextuais por papel (mantidos se quiser destacar)
+  const roleItems: Array<{ href: string; label: string }> = [];
+  if (state.isConnected && state.user?.role === UserRole.RESEARCHER) {
+    roleItems.push({ href: '/researcher', label: 'Pesquisador' });
+  }
 
-    if (role === UserRole.RESEARCHER) {
-      items.push({ href: '/researcher', label: 'Painel Pesquisador' });
-    } else if (role === UserRole.AUIN) {
-      items.push({ href: '/auin', label: 'Painel AUIN' });
-    }
-
-    return items;
-  };
-
-  const navigationItems = getNavigationItems();
+  const navigationItems = [...baseItems, ...roleItems];
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">

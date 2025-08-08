@@ -1,10 +1,21 @@
 // Rede Sepolia (testnet)
 export const SEPOLIA_CHAIN_ID = 11155111;
-export const SEPOLIA_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_KEY';
+export const SEPOLIA_RPC_URL = process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/YOUR_ALCHEMY_KEY';
 
 // Configurações do contrato (atualizar com endereços reais após deploy)
-export const CONTRACT_ADDRESS = '0x1234567890123456789012345678901234567890'; // Placeholder
-export const CONTRACT_ABI = []; // Será preenchido com a ABI real
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+
+// Importar ABI do arquivo gerado pelo deploy
+let CONTRACT_ABI: any[] = [];
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  CONTRACT_ABI = require('../contracts/TransfertecNFT.abi.json');
+} catch {
+  // Fallback se o arquivo não existir
+  CONTRACT_ABI = [];
+}
+
+export { CONTRACT_ABI };
 
 // Categorias de tecnologia
 export const TECHNOLOGY_CATEGORIES = [

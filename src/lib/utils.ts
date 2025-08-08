@@ -121,3 +121,73 @@ export function sanitizePrice(price: string): string {
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat('pt-BR').format(num);
 }
+
+/**
+ * Obtém o nome da carteira MetaMask
+ */
+export async function getWalletName(address: string): Promise<string> {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    return formatAddress(address);
+  }
+
+  try {
+    // Tentar obter o nome da conta do MetaMask
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (accounts && accounts.length > 0) {
+      // Se a carteira está conectada, tentar obter o nome
+      const accountInfo = await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }]
+      });
+      
+      // Se temos permissão, tentar obter o nome da conta
+      if (accountInfo && accountInfo.length > 0) {
+        // MetaMask não expõe diretamente o nome da conta via API
+        // Vamos usar uma abordagem baseada no endereço
+        return getWalletDisplayName(address);
+      }
+    }
+  } catch (error) {
+    console.log('Não foi possível obter nome da carteira:', error);
+  }
+
+  return getWalletDisplayName(address);
+}
+
+/**
+ * Gera um nome de exibição para a carteira baseado no endereço
+ */
+export function getWalletDisplayName(address: string): string {
+  if (!address) return 'Carteira Desconhecida';
+  
+  // Usar os últimos 4 caracteres para criar um nome
+  const lastFour = address.slice(-4).toUpperCase();
+  
+  // Lista de nomes de carteiras comuns
+  const walletNames = [
+    'Carteira Principal',
+    'Carteira de Trabalho', 
+    'Carteira de Teste',
+    'Carteira de Desenvolvimento',
+    'Carteira Pessoal',
+    'Carteira Empresarial',
+    'Carteira de Pesquisa',
+    'Carteira AUIN'
+  ];
+  
+  // Usar o hash do endereço para escolher um nome
+  const hash = address.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  
+  const nameIndex = Math.abs(hash) % walletNames.length;
+  return `${walletNames[nameIndex]} (${lastFour})`;
+}
+
+/**
+ * Obtém o nome da carteira de forma síncrona (para uso em componentes)
+ */
+export function getWalletNameSync(address: string): string {
+  return getWalletDisplayName(address);
+}

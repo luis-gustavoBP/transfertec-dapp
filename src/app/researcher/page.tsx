@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/Card'
 import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Technology, TechStatus, UserRole } from '@/types';
-import { formatEther, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { getNftContract } from '@/lib/contract';
+import { ethers } from 'ethers';
 
 // Dados mockados para demonstração
 const mockUserTechnologies: Technology[] = [
@@ -17,7 +19,7 @@ const mockUserTechnologies: Technology[] = [
     researchers: ['0x1234...5678'],
     royaltyRate: 7,
     isExclusive: false,
-    licensePrice: '3.8',
+    licensePrice: '0.001',
     expirationDate: Date.now() / 1000 + 31536000,
     ipfsHash: 'QmAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa',
     status: TechStatus.PENDING,
@@ -30,7 +32,7 @@ const mockUserTechnologies: Technology[] = [
     researchers: ['0x1234...5678'],
     royaltyRate: 6,
     isExclusive: true,
-    licensePrice: '2.2',
+    licensePrice: '0.002',
     expirationDate: Date.now() / 1000 + 31536000,
     ipfsHash: 'QmBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBbBb',
     status: TechStatus.APPROVED,
@@ -41,6 +43,16 @@ const mockUserTechnologies: Technology[] = [
 export default function ResearcherPage() {
   const { state } = useWeb3();
   const [activeTab, setActiveTab] = useState<'technologies' | 'register' | 'earnings'>('technologies');
+
+  // Form state para registro
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [priceEth, setPriceEth] = useState('0.001');
+  const [royaltyRate, setRoyaltyRate] = useState(5);
+  const [exclusive, setExclusive] = useState(false);
+  const [registerMsg, setRegisterMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if not researcher
   if (state.isConnected && state.user?.role !== UserRole.RESEARCHER) {
@@ -66,6 +78,44 @@ export default function ResearcherPage() {
     { id: 'register', label: 'Registrar Nova', icon: '➕' },
     { id: 'earnings', label: 'Receitas', icon: '💰' },
   ];
+
+  const handleSubmitTechnology = async () => {
+    setRegisterMsg(null);
+    setIsSubmitting(true);
+    try {
+      // Gerar metadados mock (em produção: enviar para IPFS e obter tokenURI)
+      const tokenId = Math.floor(Math.random() * 1e6).toString();
+      const tokenURI = `ipfs://${name.toLowerCase().replace(/\s+/g, '-')}-${tokenId}`;
+
+      // Se for owner, registrar diretamente no contrato
+      const contract = await getNftContract();
+      const owner = await contract.owner();
+      const isOwner = state.address?.toLowerCase() === owner.toLowerCase();
+
+      if (isOwner) {
+        const priceWei = ethers.parseEther(priceEth);
+        const tx = await contract.registerTechnology(BigInt(tokenId), tokenURI, priceWei, exclusive);
+        await tx.wait();
+        setRegisterMsg('Tecnologia registrada no contrato (owner).');
+      } else {
+        // Simular submissão para aprovação da AUIN
+        setRegisterMsg('Submissão enviada para AUIN (aguardando aprovação).');
+      }
+
+      // Reset simples
+      setName('');
+      setCategory('');
+      setDescription('');
+      setPriceEth('0.001');
+      setRoyaltyRate(5);
+      setExclusive(false);
+
+    } catch (e: any) {
+      setRegisterMsg(e?.message || 'Falha ao registrar');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const renderTechnologiesTab = () => (
     <div className="space-y-6">
@@ -169,6 +219,8 @@ export default function ResearcherPage() {
             </label>
             <input
               type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ex: Sistema Fotovoltaico Avançado"
             />
@@ -178,7 +230,11 @@ export default function ResearcherPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Categoria
             </label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            >
               <option value="">Selecione uma categoria</option>
               <option value="solar">Energia Solar</option>
               <option value="eolica">Energia Eólica</option>
@@ -193,6 +249,8 @@ export default function ResearcherPage() {
             </label>
             <textarea
               rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Descreva sua tecnologia em detalhes..."
             />
@@ -200,26 +258,27 @@ export default function ResearcherPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Preço da Licença (ETH)
-              </label>
+              <label className="block text sm font-medium text-gray-700 mb-2">Preço da Licença (ETH)</label>
               <input
                 type="number"
-                step="0.01"
-                min="0"
+                step="0.001"
+                min="0.001"
+                max="0.01"
+                value={priceEth}
+                onChange={(e) => setPriceEth(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="0.00"
+                placeholder="0.001"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Taxa de Royalty (%)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Taxa de Royalty (%)</label>
               <input
                 type="number"
-                min="1"
-                max="25"
+                min={1}
+                max={25}
+                value={royaltyRate}
+                onChange={(e) => setRoyaltyRate(Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="5"
               />
@@ -230,6 +289,8 @@ export default function ResearcherPage() {
             <input
               type="checkbox"
               id="exclusive"
+              checked={exclusive}
+              onChange={(e) => setExclusive(e.target.checked)}
               className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
             <label htmlFor="exclusive" className="ml-2 block text-sm text-gray-900">
@@ -251,6 +312,10 @@ export default function ResearcherPage() {
               </p>
             </div>
           </div>
+
+          {registerMsg && (
+            <p className="text-sm text-gray-600">{registerMsg}</p>
+          )}
         </CardContent>
 
         <CardFooter>
@@ -258,7 +323,7 @@ export default function ResearcherPage() {
             <Button variant="outline" className="flex-1">
               Salvar Rascunho
             </Button>
-            <Button className="flex-1">
+            <Button className="flex-1" onClick={handleSubmitTechnology} isLoading={isSubmitting} disabled={isSubmitting}>
               Registrar Tecnologia
             </Button>
           </div>

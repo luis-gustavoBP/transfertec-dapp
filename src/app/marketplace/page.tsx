@@ -1,60 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
-import { Technology, TechStatus } from '@/types';
-import { formatEther, truncateText } from '@/lib/utils';
+import { Technology } from '@/types';
+import { truncateText } from '@/lib/utils';
 import { TECHNOLOGY_CATEGORIES } from '@/lib/constants';
-
-// Dados mockados para demonstração
-const mockTechnologies: Technology[] = [
-  {
-    tokenId: '1',
-    name: 'Sistema Fotovoltaico Híbrido',
-    category: 'solar',
-    researchers: ['0x1234...5678', '0x2345...6789'],
-    royaltyRate: 5,
-    isExclusive: false,
-    licensePrice: '2.5',
-    expirationDate: Date.now() / 1000 + 31536000, // 1 ano
-    ipfsHash: 'QmXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx',
-    status: TechStatus.APPROVED,
-    description: 'Sistema inovador que combina energia solar fotovoltaica com armazenamento inteligente...',
-    images: ['/api/placeholder/400/300'],
-  },
-  {
-    tokenId: '2',
-    name: 'Biomassa de Resíduos Agrícolas',
-    category: 'biomassa',
-    researchers: ['0x3456...7890'],
-    royaltyRate: 8,
-    isExclusive: true,
-    licensePrice: '4.0',
-    expirationDate: Date.now() / 1000 + 31536000,
-    ipfsHash: 'QmYyYyYyYyYyYyYyYyYyYyYyYyYyYyYyYyYyYyYyYyYy',
-    status: TechStatus.APPROVED,
-    description: 'Processo para conversão eficiente de resíduos agrícolas em biomassa energética...',
-    images: ['/api/placeholder/400/300'],
-  },
-  {
-    tokenId: '3',
-    name: 'Turbina Eólica de Baixa Velocidade',
-    category: 'eolica',
-    researchers: ['0x4567...8901', '0x5678...9012'],
-    royaltyRate: 6,
-    isExclusive: false,
-    licensePrice: '3.2',
-    expirationDate: Date.now() / 1000 + 31536000,
-    ipfsHash: 'QmZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZzZz',
-    status: TechStatus.APPROVED,
-    description: 'Turbina eólica otimizada para funcionar eficientemente em ventos de baixa velocidade...',
-    images: ['/api/placeholder/400/300'],
-  },
-];
+import { mockTechnologies } from '@/lib/mock';
 
 export default function MarketplacePage() {
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -68,6 +25,15 @@ export default function MarketplacePage() {
   const getCategoryLabel = (value: string) => {
     const category = TECHNOLOGY_CATEGORIES.find(cat => cat.value === value);
     return category ? category.label : value;
+  };
+
+  const handleDetails = (tech: Technology) => {
+    router.push(`/marketplace/${tech.tokenId}`);
+  };
+
+  const handleLicense = (tech: Technology) => {
+    // Por ora, redireciona para a página de detalhes onde há o fluxo completo de licenciamento
+    router.push(`/marketplace/${tech.tokenId}?action=license`);
   };
 
   return (
@@ -168,10 +134,10 @@ export default function MarketplacePage() {
 
             <CardFooter>
               <div className="flex gap-2 w-full">
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleDetails(tech)}>
                   Ver Detalhes
                 </Button>
-                <Button size="sm" className="flex-1">
+                <Button size="sm" className="flex-1" onClick={() => handleLicense(tech)}>
                   Licenciar
                 </Button>
               </div>

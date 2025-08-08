@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Technology, TechStatus, UserRole } from '@/types';
 import { formatAddress, formatDate } from '@/lib/utils';
+import { getNftContract } from '@/lib/contract';
+import { ethers } from 'ethers';
 
 // Dados mockados para demonstração
 const mockPendingTechnologies: Technology[] = [
@@ -69,30 +71,62 @@ const mockApprovedTechnologies: Technology[] = [
 
 export default function AuinPage() {
   const { state } = useWeb3();
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'analytics'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'analytics' | 'manage' | 'licenses'>('pending');
 
-  // Redirect if not AUIN
-  if (state.isConnected && state.user?.role !== UserRole.AUIN) {
-    return (
-      <div className="container py-8">
-        <Card>
-          <CardContent className="text-center py-12">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Acesso Restrito
-            </h2>
-            <p className="text-gray-600">
-              Esta área é exclusiva para a Agência UNESP de Inovação (AUIN).
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const [isOwner, setIsOwner] = useState(false);
+  const [ownerError, setOwnerError] = useState<string | null>(null);
+  const [ownerChecked, setOwnerChecked] = useState(false);
+  const [ownerAddress, setOwnerAddress] = useState<string>('');
+
+  // Manage form state
+  const [techId, setTechId] = useState<string>('1');
+  const [tokenURI, setTokenURI] = useState<string>('ipfs://tech-1');
+  const [priceEth, setPriceEth] = useState<string>('0.001');
+  const [isExclusiveCfg, setIsExclusiveCfg] = useState<boolean>(false);
+  const [manageMsg, setManageMsg] = useState<string | null>(null);
+  const [loadingManage, setLoadingManage] = useState(false);
+
+  // Licensed events
+  const [licensed, setLicensed] = useState<Array<{
+    licensee: string;
+    tokenId: string;
+    technologyId: string;
+    price: string;
+    txHash: string;
+  }>>([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
+
+  useEffect(() => {
+    const checkOwner = async () => {
+      setOwnerError(null);
+      try {
+        // Contrato read-only para garantir que funcione sem metamask
+        const { getNftContractReadOnly } = await import('@/lib/contract');
+        const contract = getNftContractReadOnly();
+        const ownerAddr: string = await contract.owner();
+        const isOwnerResult = state.address?.toLowerCase() === ownerAddr.toLowerCase();
+        console.log('Owner check:', { 
+          ownerAddr, 
+          currentAddr: state.address, 
+          isOwner: isOwnerResult 
+        });
+        setOwnerAddress(ownerAddr);
+        setIsOwner(isOwnerResult);
+      } catch (e: any) {
+        console.error('Owner check error:', e);
+        setOwnerError(e?.message || 'Falha ao verificar owner');
+      } finally {
+        setOwnerChecked(true);
+      }
+    };
+    if (state.isConnected) checkOwner();
+  }, [state.isConnected, state.address]);
 
   const tabs = [
     { id: 'pending', label: 'Pendentes de Aprovação', icon: '⏳', count: mockPendingTechnologies.length },
     { id: 'approved', label: 'Tecnologias Aprovadas', icon: '✅', count: mockApprovedTechnologies.length },
+    { id: 'manage', label: 'Gerenciar', icon: '🛠️', count: 0 },
+    { id: 'licenses', label: 'Licenças', icon: '🧾', count: licensed.length },
     { id: 'analytics', label: 'Relatórios', icon: '📊', count: 0 },
   ];
 
@@ -104,6 +138,67 @@ export default function AuinPage() {
   const handleReject = (tokenId: string) => {
     console.log('Rejeitar tecnologia:', tokenId);
     // Implementar lógica de rejeição
+  };
+
+  const handleRegister = async () => {
+    setManageMsg(null);
+    setLoadingManage(true);
+    try {
+      if (!isOwner) throw new Error('Apenas o owner pode registrar');
+      const contract = await getNftContract();
+      const priceWei = ethers.parseEther(priceEth);
+      const tx = await contract.registerTechnology(BigInt(techId), tokenURI, priceWei, isExclusiveCfg);
+      await tx.wait();
+      setManageMsg('Tecnologia registrada com sucesso');
+    } catch (e: any) {
+      setManageMsg(e?.message || 'Falha ao registrar');
+    } finally {
+      setLoadingManage(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    setManageMsg(null);
+    setLoadingManage(true);
+    try {
+      if (!isOwner) throw new Error('Apenas o owner pode atualizar');
+      const contract = await getNftContract();
+      const priceWei = ethers.parseEther(priceEth);
+      const tx = await contract.updateTechnology(BigInt(techId), tokenURI, priceWei, isExclusiveCfg);
+      await tx.wait();
+      setManageMsg('Tecnologia atualizada com sucesso');
+    } catch (e: any) {
+      setManageMsg(e?.message || 'Falha ao atualizar');
+    } finally {
+      setLoadingManage(false);
+    }
+  };
+
+  const handleLoadLicensed = async () => {
+    setLoadingLicenses(true);
+    try {
+      const contract = await getNftContract();
+      // Consultar todos os eventos Licensed
+      const filter = await (contract as any).filters?.Licensed?.();
+      const logs = filter
+        ? await contract.queryFilter(filter, 0, 'latest')
+        : await contract.queryFilter('Licensed', 0, 'latest');
+      const items = logs.map((log: any) => {
+        const { args, transactionHash } = log;
+        return {
+          licensee: args?.licensee as string,
+          tokenId: (args?.tokenId as bigint).toString(),
+          technologyId: (args?.technologyId as bigint).toString(),
+          price: ethers.formatEther(args?.priceWei as bigint),
+          txHash: transactionHash as string,
+        };
+      });
+      setLicensed(items.reverse());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLicenses(false);
+    }
   };
 
   const renderPendingTab = () => (
@@ -275,38 +370,104 @@ export default function AuinPage() {
     </div>
   );
 
+  const renderManageTab = () => (
+    <div className="max-w-2xl">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Gerenciar Tecnologias (Owner)</h2>
+      {!isOwner && (
+        <p className="text-sm text-red-600 mb-4">Conecte como owner do contrato para usar estas ações.</p>
+      )}
+      <Card>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Technology ID</label>
+              <input type="number" value={techId} onChange={(e) => setTechId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Preço (ETH)</label>
+              <input type="number" step="0.001" min="0.001" max="0.01" value={priceEth} onChange={(e) => setPriceEth(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Token URI (IPFS)</label>
+            <input type="text" value={tokenURI} onChange={(e) => setTokenURI(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+          </div>
+          <div className="flex items-center">
+            <input id="exclusiveCfg" type="checkbox" checked={isExclusiveCfg} onChange={(e) => setIsExclusiveCfg(e.target.checked)} className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" />
+            <label htmlFor="exclusiveCfg" className="ml-2 block text-sm text-gray-900">Exclusiva</label>
+          </div>
+          {manageMsg && <p className="text-sm text-gray-600">{manageMsg}</p>}
+          <div className="flex gap-2">
+            <Button onClick={handleRegister} isLoading={loadingManage} disabled={!isOwner || loadingManage}>Registrar</Button>
+            <Button variant="secondary" onClick={handleUpdate} isLoading={loadingManage} disabled={!isOwner || loadingManage}>Atualizar</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderLicensesTab = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">Licenças Emitidas</h2>
+        <Button onClick={handleLoadLicensed} isLoading={loadingLicenses}>Atualizar</Button>
+      </div>
+      {licensed.length === 0 && (
+        <p className="text-sm text-gray-600">Nenhuma licença encontrada. Clique em Atualizar para buscar eventos.</p>
+      )}
+      <div className="space-y-3">
+        {licensed.map((item, idx) => (
+          <Card key={`${item.txHash}-${idx}`}>
+            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-2 text-sm">
+              <div>
+                <div className="text-gray-500">Licensee</div>
+                <div className="font-medium">{formatAddress(item.licensee)}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Technology</div>
+                <div className="font-medium">#{item.technologyId}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Token ID</div>
+                <div className="font-medium">#{item.tokenId}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Preço</div>
+                <div className="font-medium">{item.price} ETH</div>
+              </div>
+              <div className="text-xs text-gray-500 break-all">{item.txHash}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderAnalyticsTab = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">
-        Relatórios e Análises
-      </h2>
-
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="text-center py-6">
             <div className="text-3xl font-bold text-blue-600 mb-2">27</div>
-            <div className="text-sm text-gray-600">Total de Tecnologias</div>
+            <div className="text-sm text-gray-600">Tecnologias Cadastradas</div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="text-center py-6">
-            <div className="text-3xl font-bold text-green-600 mb-2">23</div>
-            <div className="text-sm text-gray-600">Aprovadas</div>
+            <div className="text-3xl font-bold text-green-600 mb-2">14</div>
+            <div className="text-sm text-gray-600">Licenças Emitidas</div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="text-center py-6">
-            <div className="text-3xl font-bold text-yellow-600 mb-2">2</div>
+            <div className="text-3xl font-bold text-purple-600 mb-2">4.12 ETH</div>
+            <div className="text-sm text-gray-600">Receita Total</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="text-center py-6">
+            <div className="text-3xl font-bold text-yellow-600 mb-2">5</div>
             <div className="text-sm text-gray-600">Pendentes</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="text-center py-6">
-            <div className="text-3xl font-bold text-purple-600 mb-2">34.2 ETH</div>
-            <div className="text-sm text-gray-600">Volume Total</div>
           </CardContent>
         </Card>
       </div>
@@ -314,32 +475,19 @@ export default function AuinPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Tecnologias por Categoria
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Atividade Recente</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {[
-                { category: 'Energia Solar', count: 8, percentage: 35 },
-                { category: 'Biomassa', count: 6, percentage: 26 },
-                { category: 'Energia Eólica', count: 4, percentage: 17 },
-                { category: 'Agricultura', count: 3, percentage: 13 },
-                { category: 'Outros', count: 2, percentage: 9 },
-              ].map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{item.category}</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-20 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-primary-600 h-2 rounded-full"
-                        style={{ width: `${item.percentage}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {item.count}
-                    </span>
-                  </div>
+                { action: 'Licença emitida', tech: 'Sistema Solar Híbrido', time: '2h atrás' },
+                { action: 'Nova tecnologia', tech: 'Biodigestor Compacto', time: '6h atrás' },
+                { action: 'Royalty pago', tech: 'Sensor IoT', time: '1d atrás' },
+                { action: 'Aprovação', tech: 'Turbina Eólica', time: '2d atrás' }
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-sm">
+                  <div className="text-gray-900">{item.action}: <span className="font-medium">{item.tech}</span></div>
+                  <div className="text-gray-500">{item.time}</div>
                 </div>
               ))}
             </div>
@@ -348,25 +496,23 @@ export default function AuinPage() {
 
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Atividade Recente
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">Licenças por Categoria</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {[
-                { action: 'Tecnologia aprovada', tech: 'Sistema Solar Híbrido', time: '2h atrás' },
-                { action: 'Nova submissão', tech: 'Biodigestor Compacto', time: '5h atrás' },
-                { action: 'Licença emitida', tech: 'Turbina Eólica', time: '1d atrás' },
-                { action: 'Royalty pago', tech: 'Biomassa Agrícola', time: '2d atrás' },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-start space-x-3">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">
-                      <span className="font-medium">{activity.action}:</span> {activity.tech}
-                    </p>
-                    <p className="text-xs text-gray-500">{activity.time}</p>
+                { label: 'Solar', pct: 40 },
+                { label: 'Biomassa', pct: 30 },
+                { label: 'Eólica', pct: 20 },
+                { label: 'Outros', pct: 10 }
+              ].map((item, idx) => (
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{item.label}</span>
+                    <span className="text-gray-900 font-medium">{item.pct}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full">
+                    <div className="h-2 bg-primary-600 rounded-full" style={{ width: `${item.pct}%` }} />
                   </div>
                 </div>
               ))}
@@ -376,6 +522,27 @@ export default function AuinPage() {
       </div>
     </div>
   );
+
+  // Se conectado, bloquear acesso somente após checar owner e se não for AUIN nem owner
+  if (
+    state.isConnected && ownerChecked && state.user?.role !== UserRole.AUIN && !isOwner
+  ) {
+    return (
+      <div className="container py-8">
+        <Card>
+          <CardContent className="text-center py-12">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Acesso Restrito
+            </h2>
+            <p className="text-gray-600">
+              Esta área é exclusiva para a Agência UNESP de Inovação (AUIN) ou o owner do contrato.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-8">
@@ -387,6 +554,37 @@ export default function AuinPage() {
         <p className="text-gray-600">
           Gerencie aprovações e monitore a transferência de tecnologia
         </p>
+        {ownerAddress && (
+          <p className="text-sm text-gray-500 mt-2">
+            Owner do contrato: {ownerAddress}
+          </p>
+        )}
+        {state.address && (
+          <p className="text-sm text-gray-500">
+            Carteira conectada: {state.address}
+          </p>
+        )}
+        {ownerChecked && (
+          <p className="text-sm text-gray-500">
+            Status: {isOwner ? '✅ Owner' : '❌ Não é owner'} | 
+            Role: {state.user?.role || 'N/A'}
+          </p>
+        )}
+        {ownerError && (
+          <p className="text-sm text-red-600 mt-2">{ownerError}</p>
+        )}
+        {ownerChecked && state.isConnected && state.user?.role !== UserRole.AUIN && !isOwner && (
+          <div className="mt-4">
+            <Card>
+              <CardContent className="text-center py-6">
+                <div className="text-red-500 text-4xl mb-2">⚠️</div>
+                <p className="text-sm text-gray-700">
+                  Acesso restrito. Conecte a carteira owner do contrato ou uma conta AUIN para gerenciar.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -419,6 +617,8 @@ export default function AuinPage() {
       {/* Tab Content */}
       {activeTab === 'pending' && renderPendingTab()}
       {activeTab === 'approved' && renderApprovedTab()}
+      {activeTab === 'manage' && renderManageTab()}
+      {activeTab === 'licenses' && renderLicensesTab()}
       {activeTab === 'analytics' && renderAnalyticsTab()}
     </div>
   );

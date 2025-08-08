@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, R
 import { ethers } from 'ethers';
 import { WalletState, User, UserRole } from '@/types';
 import { SEPOLIA_CHAIN_ID, ERROR_MESSAGES } from '@/lib/constants';
+import { getWalletNameSync } from '@/lib/utils';
 
 interface Web3ContextType {
   state: WalletState;
@@ -94,7 +95,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       const user: User = {
         address,
         role: getUserRole(address),
-        name: `Usuário ${address.slice(-4)}`, // Mock
+        name: getWalletNameSync(address),
       };
 
       dispatch({

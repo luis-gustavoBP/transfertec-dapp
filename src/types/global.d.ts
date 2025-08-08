@@ -9,3 +9,13 @@ interface Window {
     networkVersion: string;
   };
 }
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    NEXT_PUBLIC_ALCHEMY_RPC_URL?: string;
+    NEXT_PUBLIC_CONTRACT_ADDRESS?: string;
+    ALCHEMY_API_KEY?: string;
+    PRIVATE_KEY?: string;
+    ETHERSCAN_API_KEY?: string;
+  }
+}
