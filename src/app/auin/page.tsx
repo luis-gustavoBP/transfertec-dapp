@@ -69,6 +69,52 @@ const mockApprovedTechnologies: Technology[] = [
   },
 ];
 
+function RoleManager({ isOwner }: { isOwner: boolean }) {
+  const [addr, setAddr] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handle = async (action: 'addResearcher' | 'removeResearcher' | 'addCompany' | 'removeCompany') => {
+    setMsg(null);
+    setLoading(true);
+    try {
+      if (!isOwner) throw new Error('Apenas owner');
+      const contract = await getNftContract();
+      const tx = await (contract as any)[action](addr);
+      await tx.wait();
+      setMsg(`Sucesso: ${action}`);
+    } catch (e: any) {
+      setMsg(e?.message || 'Falha na operação');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+          <input
+            type="text"
+            value={addr}
+            onChange={(e) => setAddr(e.target.value)}
+            placeholder="0x..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => handle('addResearcher')} disabled={!isOwner || loading} isLoading={loading}>Adicionar Pesquisador</Button>
+          <Button size="sm" variant="outline" onClick={() => handle('removeResearcher')} disabled={!isOwner || loading} isLoading={loading}>Remover Pesquisador</Button>
+          <Button size="sm" variant="secondary" onClick={() => handle('addCompany')} disabled={!isOwner || loading} isLoading={loading}>Adicionar Empresa</Button>
+          <Button size="sm" variant="outline" onClick={() => handle('removeCompany')} disabled={!isOwner || loading} isLoading={loading}>Remover Empresa</Button>
+        </div>
+        {msg && <p className="text-sm text-gray-600">{msg}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AuinPage() {
   const { state } = useWeb3();
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'analytics' | 'manage' | 'licenses'>('pending');
@@ -403,6 +449,12 @@ export default function AuinPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Gestão de Papéis */}
+      <div className="mt-8 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Gestão de Papéis</h3>
+        <RoleManager isOwner={isOwner} />
+      </div>
     </div>
   );
 

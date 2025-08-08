@@ -19,9 +19,21 @@ contract TransfertecNFT is ERC721URIStorage, Ownable {
 
     mapping(uint256 => TechnologyConfig) private _technologies; // technologyId => config
 
+    // ======= Gestão de Papéis =======
+    mapping(address => bool) private _researchers;
+    mapping(address => bool) private _companies;
+
+    address[] private _researcherList;
+    address[] private _companyList;
+
     event TechnologyRegistered(uint256 indexed technologyId, uint256 priceWei, bool isExclusive, string tokenURI);
     event TechnologyUpdated(uint256 indexed technologyId, uint256 priceWei, bool isExclusive, string tokenURI);
     event Licensed(address indexed licensee, uint256 indexed tokenId, uint256 indexed technologyId, uint256 priceWei);
+
+    event ResearcherAdded(address indexed account);
+    event ResearcherRemoved(address indexed account);
+    event CompanyAdded(address indexed account);
+    event CompanyRemoved(address indexed account);
 
     constructor() ERC721("TransfertecNFT", "TT-NFT") Ownable(msg.sender) {}
 
@@ -91,6 +103,51 @@ contract TransfertecNFT is ERC721URIStorage, Ownable {
     ) {
         TechnologyConfig storage cfg = _technologies[technologyId];
         return (cfg.tokenURI, cfg.priceWei, cfg.isExclusive, cfg.isRegistered, cfg.exclusiveLicensed, cfg.totalLicenses);
+    }
+
+    // ======= Funções de Papéis =======
+    function addResearcher(address account) external onlyOwner {
+        require(account != address(0), "Invalid address");
+        require(!_researchers[account], "Already researcher");
+        _researchers[account] = true;
+        _researcherList.push(account);
+        emit ResearcherAdded(account);
+    }
+
+    function removeResearcher(address account) external onlyOwner {
+        require(_researchers[account], "Not a researcher");
+        _researchers[account] = false;
+        emit ResearcherRemoved(account);
+    }
+
+    function addCompany(address account) external onlyOwner {
+        require(account != address(0), "Invalid address");
+        require(!_companies[account], "Already company");
+        _companies[account] = true;
+        _companyList.push(account);
+        emit CompanyAdded(account);
+    }
+
+    function removeCompany(address account) external onlyOwner {
+        require(_companies[account], "Not a company");
+        _companies[account] = false;
+        emit CompanyRemoved(account);
+    }
+
+    function isResearcher(address account) external view returns (bool) {
+        return _researchers[account];
+    }
+
+    function isCompany(address account) external view returns (bool) {
+        return _companies[account];
+    }
+
+    function getResearchers() external view returns (address[] memory) {
+        return _researcherList;
+    }
+
+    function getCompanies() external view returns (address[] memory) {
+        return _companyList;
     }
 }
 

@@ -26,17 +26,25 @@ import type {
 export interface TransfertecNFTInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "addCompany"
+      | "addResearcher"
       | "approve"
       | "balanceOf"
       | "getApproved"
+      | "getCompanies"
+      | "getResearchers"
       | "getTechnology"
       | "isApprovedForAll"
+      | "isCompany"
+      | "isResearcher"
       | "licenseTechnology"
       | "mint"
       | "name"
       | "owner"
       | "ownerOf"
       | "registerTechnology"
+      | "removeCompany"
+      | "removeResearcher"
       | "renounceOwnership"
       | "safeTransferFrom(address,address,uint256)"
       | "safeTransferFrom(address,address,uint256,bytes)"
@@ -54,14 +62,26 @@ export interface TransfertecNFTInterface extends Interface {
       | "Approval"
       | "ApprovalForAll"
       | "BatchMetadataUpdate"
+      | "CompanyAdded"
+      | "CompanyRemoved"
       | "Licensed"
       | "MetadataUpdate"
       | "OwnershipTransferred"
+      | "ResearcherAdded"
+      | "ResearcherRemoved"
       | "TechnologyRegistered"
       | "TechnologyUpdated"
       | "Transfer"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "addCompany",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "addResearcher",
+    values: [AddressLike]
+  ): string;
   encodeFunctionData(
     functionFragment: "approve",
     values: [AddressLike, BigNumberish]
@@ -75,12 +95,28 @@ export interface TransfertecNFTInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "getCompanies",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getResearchers",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "getTechnology",
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "isApprovedForAll",
     values: [AddressLike, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isCompany",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isResearcher",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "licenseTechnology",
@@ -99,6 +135,14 @@ export interface TransfertecNFTInterface extends Interface {
   encodeFunctionData(
     functionFragment: "registerTechnology",
     values: [BigNumberish, string, BigNumberish, boolean]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "removeCompany",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "removeResearcher",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "renounceOwnership",
@@ -138,10 +182,23 @@ export interface TransfertecNFTInterface extends Interface {
     values: [BigNumberish, string, BigNumberish, boolean]
   ): string;
 
+  decodeFunctionResult(functionFragment: "addCompany", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "addResearcher",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getApproved",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getCompanies",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getResearchers",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -150,6 +207,11 @@ export interface TransfertecNFTInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "isApprovedForAll",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "isCompany", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isResearcher",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -162,6 +224,14 @@ export interface TransfertecNFTInterface extends Interface {
   decodeFunctionResult(functionFragment: "ownerOf", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "registerTechnology",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "removeCompany",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "removeResearcher",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -256,6 +326,30 @@ export namespace BatchMetadataUpdateEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace CompanyAddedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace CompanyRemovedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace LicensedEvent {
   export type InputTuple = [
     licensee: AddressLike,
@@ -299,6 +393,30 @@ export namespace OwnershipTransferredEvent {
   export interface OutputObject {
     previousOwner: string;
     newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ResearcherAddedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ResearcherRemovedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -417,6 +535,14 @@ export interface TransfertecNFT extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  addCompany: TypedContractMethod<[account: AddressLike], [void], "nonpayable">;
+
+  addResearcher: TypedContractMethod<
+    [account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   approve: TypedContractMethod<
     [to: AddressLike, tokenId: BigNumberish],
     [void],
@@ -426,6 +552,10 @@ export interface TransfertecNFT extends BaseContract {
   balanceOf: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
 
   getApproved: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+
+  getCompanies: TypedContractMethod<[], [string[]], "view">;
+
+  getResearchers: TypedContractMethod<[], [string[]], "view">;
 
   getTechnology: TypedContractMethod<
     [technologyId: BigNumberish],
@@ -447,6 +577,10 @@ export interface TransfertecNFT extends BaseContract {
     [boolean],
     "view"
   >;
+
+  isCompany: TypedContractMethod<[account: AddressLike], [boolean], "view">;
+
+  isResearcher: TypedContractMethod<[account: AddressLike], [boolean], "view">;
 
   licenseTechnology: TypedContractMethod<
     [technologyId: BigNumberish],
@@ -473,6 +607,18 @@ export interface TransfertecNFT extends BaseContract {
       priceWei: BigNumberish,
       isExclusive: boolean
     ],
+    [void],
+    "nonpayable"
+  >;
+
+  removeCompany: TypedContractMethod<
+    [account: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  removeResearcher: TypedContractMethod<
+    [account: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -540,6 +686,12 @@ export interface TransfertecNFT extends BaseContract {
   ): T;
 
   getFunction(
+    nameOrSignature: "addCompany"
+  ): TypedContractMethod<[account: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "addResearcher"
+  ): TypedContractMethod<[account: AddressLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "approve"
   ): TypedContractMethod<
     [to: AddressLike, tokenId: BigNumberish],
@@ -552,6 +704,12 @@ export interface TransfertecNFT extends BaseContract {
   getFunction(
     nameOrSignature: "getApproved"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+  getFunction(
+    nameOrSignature: "getCompanies"
+  ): TypedContractMethod<[], [string[]], "view">;
+  getFunction(
+    nameOrSignature: "getResearchers"
+  ): TypedContractMethod<[], [string[]], "view">;
   getFunction(
     nameOrSignature: "getTechnology"
   ): TypedContractMethod<
@@ -575,6 +733,12 @@ export interface TransfertecNFT extends BaseContract {
     [boolean],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "isCompany"
+  ): TypedContractMethod<[account: AddressLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "isResearcher"
+  ): TypedContractMethod<[account: AddressLike], [boolean], "view">;
   getFunction(
     nameOrSignature: "licenseTechnology"
   ): TypedContractMethod<[technologyId: BigNumberish], [bigint], "payable">;
@@ -606,6 +770,12 @@ export interface TransfertecNFT extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "removeCompany"
+  ): TypedContractMethod<[account: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "removeResearcher"
+  ): TypedContractMethod<[account: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
@@ -689,6 +859,20 @@ export interface TransfertecNFT extends BaseContract {
     BatchMetadataUpdateEvent.OutputObject
   >;
   getEvent(
+    key: "CompanyAdded"
+  ): TypedContractEvent<
+    CompanyAddedEvent.InputTuple,
+    CompanyAddedEvent.OutputTuple,
+    CompanyAddedEvent.OutputObject
+  >;
+  getEvent(
+    key: "CompanyRemoved"
+  ): TypedContractEvent<
+    CompanyRemovedEvent.InputTuple,
+    CompanyRemovedEvent.OutputTuple,
+    CompanyRemovedEvent.OutputObject
+  >;
+  getEvent(
     key: "Licensed"
   ): TypedContractEvent<
     LicensedEvent.InputTuple,
@@ -708,6 +892,20 @@ export interface TransfertecNFT extends BaseContract {
     OwnershipTransferredEvent.InputTuple,
     OwnershipTransferredEvent.OutputTuple,
     OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "ResearcherAdded"
+  ): TypedContractEvent<
+    ResearcherAddedEvent.InputTuple,
+    ResearcherAddedEvent.OutputTuple,
+    ResearcherAddedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ResearcherRemoved"
+  ): TypedContractEvent<
+    ResearcherRemovedEvent.InputTuple,
+    ResearcherRemovedEvent.OutputTuple,
+    ResearcherRemovedEvent.OutputObject
   >;
   getEvent(
     key: "TechnologyRegistered"
@@ -765,6 +963,28 @@ export interface TransfertecNFT extends BaseContract {
       BatchMetadataUpdateEvent.OutputObject
     >;
 
+    "CompanyAdded(address)": TypedContractEvent<
+      CompanyAddedEvent.InputTuple,
+      CompanyAddedEvent.OutputTuple,
+      CompanyAddedEvent.OutputObject
+    >;
+    CompanyAdded: TypedContractEvent<
+      CompanyAddedEvent.InputTuple,
+      CompanyAddedEvent.OutputTuple,
+      CompanyAddedEvent.OutputObject
+    >;
+
+    "CompanyRemoved(address)": TypedContractEvent<
+      CompanyRemovedEvent.InputTuple,
+      CompanyRemovedEvent.OutputTuple,
+      CompanyRemovedEvent.OutputObject
+    >;
+    CompanyRemoved: TypedContractEvent<
+      CompanyRemovedEvent.InputTuple,
+      CompanyRemovedEvent.OutputTuple,
+      CompanyRemovedEvent.OutputObject
+    >;
+
     "Licensed(address,uint256,uint256,uint256)": TypedContractEvent<
       LicensedEvent.InputTuple,
       LicensedEvent.OutputTuple,
@@ -796,6 +1016,28 @@ export interface TransfertecNFT extends BaseContract {
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
       OwnershipTransferredEvent.OutputObject
+    >;
+
+    "ResearcherAdded(address)": TypedContractEvent<
+      ResearcherAddedEvent.InputTuple,
+      ResearcherAddedEvent.OutputTuple,
+      ResearcherAddedEvent.OutputObject
+    >;
+    ResearcherAdded: TypedContractEvent<
+      ResearcherAddedEvent.InputTuple,
+      ResearcherAddedEvent.OutputTuple,
+      ResearcherAddedEvent.OutputObject
+    >;
+
+    "ResearcherRemoved(address)": TypedContractEvent<
+      ResearcherRemovedEvent.InputTuple,
+      ResearcherRemovedEvent.OutputTuple,
+      ResearcherRemovedEvent.OutputObject
+    >;
+    ResearcherRemoved: TypedContractEvent<
+      ResearcherRemovedEvent.InputTuple,
+      ResearcherRemovedEvent.OutputTuple,
+      ResearcherRemovedEvent.OutputObject
     >;
 
     "TechnologyRegistered(uint256,uint256,bool,string)": TypedContractEvent<
