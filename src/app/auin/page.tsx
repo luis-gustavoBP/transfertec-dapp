@@ -244,18 +244,30 @@ export default function AuinPage() {
   }, [state.isConnected, state.address]);
 
   const tabs = [
-    { id: 'pending', label: 'Pendentes de Aprovação', icon: '⏳', count: mockPendingTechnologies.length },
-    { id: 'approved', label: 'Tecnologias Aprovadas', icon: '✅', count: mockApprovedTechnologies.length },
+    { id: 'pending', label: 'Pendentes de Aprovação', icon: '⏳', count: (pending?.length || 0) + mockPendingTechnologies.length },
+    { id: 'approved', label: 'Tecnologias Aprovadas', icon: '✅', count: (approvedLocal?.length || 0) + mockApprovedTechnologies.length },
     { id: 'manage', label: 'Gerenciar', icon: '🛠️', count: 0 },
     { id: 'licenses', label: 'Licenças', icon: '🧾', count: licensed.length },
     { id: 'analytics', label: 'Relatórios', icon: '📊', count: 0 },
   ];
 
-  const handleApprove = (tokenId: string) => {
+  const handleApprove = async (tokenId: string) => {
+    // mover da fila pendente para aprovada e tentar registrar on-chain se owner
+    const pendingList = getPendingTechnologies();
+    const tech = pendingList.find((t) => t.tokenId === tokenId);
     const approved = approveTechnology(tokenId);
-    if (approved) {
-      setPending(getPendingTechnologies());
-      setApprovedLocal(getApprovedTechnologies());
+    setPending(getPendingTechnologies());
+    setApprovedLocal(getApprovedTechnologies());
+
+    // Se for owner, registrar no contrato automaticamente
+    try {
+      if (!isOwner || !tech) return;
+      const contract = await getNftContract();
+      const priceWei = ethers.parseEther(tech.licensePrice || '0');
+      const uri = tech.ipfsHash ? `ipfs://${tech.ipfsHash}` : 'ipfs://';
+      await (await contract.registerTechnology(BigInt(tech.tokenId), uri, priceWei, !!tech.isExclusive)).wait();
+    } catch (err) {
+      console.error('Falha ao registrar on-chain na aprovação:', err);
     }
   };
 
@@ -677,7 +689,7 @@ export default function AuinPage() {
   return (
     <div className="container py-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 glass-card rounded-2xl p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Painel AUIN
         </h1>
@@ -718,8 +730,8 @@ export default function AuinPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-8">
-        <div className="border-b border-gray-200">
+      <div className="mb-8 glass-card rounded-2xl p-2">
+        <div className="border-b border-white/20">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => (
               <button
@@ -727,14 +739,14 @@ export default function AuinPage() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary-400 text-primary-100'
+                    : 'border-transparent text-white/80 hover:text-white hover:border-white/30'
                 }`}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
                 {tab.count > 0 && (
-                  <span className="bg-primary-100 text-primary-600 text-xs px-2 py-1 rounded-full">
+                  <span className="glass-card text-primary-50 text-xs px-2 py-1 rounded-full">
                     {tab.count}
                   </span>
                 )}

@@ -36,7 +36,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
 
   if (!state.isConnected) {
     return (
-      <div className={className}>
+      <div className={`glass-card rounded-2xl p-2 ${className}`}>
         <Button
           onClick={handleConnect}
           isLoading={state.isConnecting}
@@ -45,7 +45,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
           {state.isConnecting ? 'Conectando...' : 'Conectar Carteira'}
         </Button>
         {error && (
-          <p className="text-red-600 text-sm mt-2 max-w-[200px]">
+          <p className="text-red-300 text-sm mt-2 max-w-[200px]">
             {error}
           </p>
         )}
@@ -55,7 +55,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
 
   if (isWrongNetwork) {
     return (
-      <div className={className}>
+      <div className={`glass-card rounded-2xl p-2 ${className}`}>
         <Button
           onClick={handleNetworkSwitch}
           variant="accent"
@@ -64,7 +64,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
           Trocar para Sepolia
         </Button>
         {error && (
-          <p className="text-red-600 text-sm mt-2 max-w-[200px]">
+          <p className="text-red-300 text-sm mt-2 max-w-[200px]">
             {error}
           </p>
         )}
@@ -73,7 +73,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
   }
 
   return (
-    <div className={`flex items-center space-x-4 ${className}`}>
+    <div className={`flex items-center space-x-4 glass-card rounded-2xl p-2 ${className}`}>
       {/* Informações da carteira */}
       <div className="hidden md:flex flex-col items-end text-sm">
         <span className="font-medium text-gray-900">
@@ -86,7 +86,7 @@ export default function WalletConnect({ className }: WalletConnectProps) {
 
       {/* Indicador de usuário */}
       <div className="flex items-center space-x-2">
-        <div className="w-8 h-8 bg-primary-700 rounded-full flex items-center justify-center">
+        <div className="w-8 h-8 bg-primary-700 rounded-full flex items-center justify-center shadow-md">
           <span className="text-white text-xs font-bold">
             {state.user?.role === 'RESEARCHER' ? 'P' : 
              state.user?.role === 'AUIN' ? 'A' : 'E'}

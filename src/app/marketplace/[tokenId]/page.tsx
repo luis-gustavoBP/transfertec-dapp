@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
 import { getTechnologyById } from '@/lib/mock';
-import { useEffect, useState } from 'react';
 import { STORAGE_EVENTS } from '@/lib/storage';
 import { formatDate } from '@/lib/utils';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { ethers } from 'ethers';
-import { getNftContract, getSigner } from '@/lib/contract';
+import { getNftContract, getSigner, getNftContractReadOnly } from '@/lib/contract';
 
 export default function TechnologyDetailsPage() {
   const params = useParams<{ tokenId: string }>();
@@ -21,6 +20,8 @@ export default function TechnologyDetailsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { state } = useWeb3();
+  const [isOnchainRegistered, setIsOnchainRegistered] = useState<boolean | null>(null);
+  const [checkingRegistration, setCheckingRegistration] = useState(false);
 
   const [technology, setTechnology] = useState(() => getTechnologyById(params.tokenId));
 
@@ -38,6 +39,28 @@ export default function TechnologyDetailsPage() {
   }, [params.tokenId]);
 
   useEffect(() => {
+    const checkOnchain = async () => {
+      if (!technology) {
+        setIsOnchainRegistered(null);
+        return;
+      }
+      try {
+        setCheckingRegistration(true);
+        const contract = getNftContractReadOnly();
+        // getTechnology retorna struct: [tokenURI, priceWei, isExclusive, isRegistered, ...]
+        const cfg: any = await (contract as any).getTechnology(BigInt(technology.tokenId));
+        const reg = typeof cfg?.isRegistered === 'boolean' ? cfg.isRegistered : Boolean(cfg?.[3]);
+        setIsOnchainRegistered(reg);
+      } catch {
+        setIsOnchainRegistered(false);
+      } finally {
+        setCheckingRegistration(false);
+      }
+    };
+    checkOnchain();
+  }, [technology]);
+
+  useEffect(() => {
     if (action === 'license') setIsLicensing(true);
   }, [action]);
 
@@ -52,6 +75,10 @@ export default function TechnologyDetailsPage() {
   const handleConfirmLicense = async () => {
     if (!state.isConnected || !state.address) {
       setError('Conecte sua carteira para continuar.');
+      return;
+    }
+    if (!isOnchainRegistered) {
+      setError('Tecnologia ainda não registrada on-chain. Aguarde aprovação da AUIN.');
       return;
     }
     setError(null);
@@ -98,7 +125,7 @@ export default function TechnologyDetailsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card>
-            <CardHeader>
+             <CardHeader>
               <div className="flex items-start justify-between">
                 <h1 className="text-2xl font-bold text-gray-900">{technology.name}</h1>
                 <StatusBadge status={technology.status} />
@@ -110,7 +137,7 @@ export default function TechnologyDetailsPage() {
               </div>
 
               <div className="space-y-3 text-gray-700">
-                <p>{technology.description}</p>
+                <p className="text-gray-700">{technology.description}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="text-sm text-gray-500">Preço da Licença</div>
@@ -136,7 +163,7 @@ export default function TechnologyDetailsPage() {
 
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader>
+             <CardHeader>
               <h2 className="text-lg font-semibold text-gray-900">Licenciamento</h2>
             </CardHeader>
             <CardContent>
@@ -147,9 +174,19 @@ export default function TechnologyDetailsPage() {
                   <div className="text-sm text-gray-600">
                     Endereço conectado: <span className="font-mono">{state.address}</span>
                   </div>
-                  <Button onClick={() => setIsLicensing(true)} className="w-full">
+                  <Button
+                    onClick={() => setIsLicensing(true)}
+                    className="w-full"
+                    disabled={checkingRegistration || !isOnchainRegistered}
+                  >
                     Solicitar Licença ({technology.licensePrice} ETH)
                   </Button>
+                  {checkingRegistration && (
+                    <p className="text-xs text-gray-500">Verificando registro on-chain...</p>
+                  )}
+                  {isOnchainRegistered === false && (
+                    <p className="text-xs text-yellow-700">Aguardando aprovação/registro da AUIN para esta tecnologia.</p>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -165,9 +202,9 @@ export default function TechnologyDetailsPage() {
             <p className="text-sm text-gray-600 mb-6">
               Você está prestes a solicitar a licença da tecnologia "{technology.name}" por {technology.licensePrice} ETH.
             </p>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setIsLicensing(false)} disabled={isSubmitting}>Cancelar</Button>
-              <Button onClick={handleConfirmLicense} isLoading={isSubmitting} disabled={isSubmitting}>Confirmar</Button>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setIsLicensing(false)} disabled={isSubmitting}>Cancelar</Button>
+                <Button onClick={handleConfirmLicense} isLoading={isSubmitting} disabled={isSubmitting || !isOnchainRegistered}>Confirmar</Button>
             </div>
           </div>
         </div>

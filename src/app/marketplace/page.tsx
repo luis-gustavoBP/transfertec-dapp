@@ -55,7 +55,7 @@ export default function MarketplacePage() {
   return (
     <div className="container py-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 glass-card rounded-2xl p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Marketplace de Tecnologias
         </h1>
@@ -65,7 +65,7 @@ export default function MarketplacePage() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-8 space-y-4">
+      <div className="mb-8 space-y-4 glass-card rounded-2xl p-4">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Busca */}
           <div className="flex-1">

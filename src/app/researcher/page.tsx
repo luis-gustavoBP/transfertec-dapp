@@ -229,6 +229,10 @@ export default function ResearcherPage() {
           status: TechStatus.PENDING,
           images: ['/api/placeholder/400/300'],
         });
+        // Feedback visual imediato na UI AUIN por event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('transfertec:pending-updated'));
+        }
         setRegisterMsg('Submissão enviada para AUIN (aguardando aprovação).');
       }
 
@@ -620,7 +624,7 @@ export default function ResearcherPage() {
   return (
     <div className="container py-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 glass-card rounded-2xl p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Painel do Pesquisador
         </h1>
@@ -630,8 +634,8 @@ export default function ResearcherPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-8">
-        <div className="border-b border-gray-200">
+      <div className="mb-8 glass-card rounded-2xl p-2">
+        <div className="border-b border-white/20">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => (
               <button
@@ -639,8 +643,8 @@ export default function ResearcherPage() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary-400 text-primary-50'
+                    : 'border-transparent text-white/80 hover:text-white hover:border-white/30'
                 }`}
               >
                 <span>{tab.icon}</span>

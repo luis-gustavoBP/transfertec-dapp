@@ -12,8 +12,8 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          'bg-white rounded-xl border border-gray-200 shadow-sm',
-          hover && 'hover:shadow-lg hover:border-gray-300 transition-all duration-200 cursor-pointer',
+          'rounded-2xl glass-card',
+          hover && 'transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl',
           className
         )}
         {...props}
@@ -75,7 +75,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
     return (
       <div
         ref={ref}
-        className={cn('px-6 py-4 bg-gray-50 rounded-b-xl border-t border-gray-200', className)}
+        className={cn('px-6 py-4 glass-footer rounded-b-2xl', className)}
         {...props}
       >
         {children}
