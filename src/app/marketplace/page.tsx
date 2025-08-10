@@ -8,14 +8,30 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { Technology } from '@/types';
 import { truncateText } from '@/lib/utils';
 import { TECHNOLOGY_CATEGORIES } from '@/lib/constants';
-import { mockTechnologies } from '@/lib/mock';
+import { getAllApprovedTechnologies } from '@/lib/mock';
+import { useEffect } from 'react';
+import { STORAGE_EVENTS } from '@/lib/storage';
 
 export default function MarketplacePage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [approved, setApproved] = useState<Technology[]>(getAllApprovedTechnologies());
 
-  const filteredTechnologies = mockTechnologies.filter(tech => {
+  useEffect(() => {
+    const reload = () => setApproved(getAllApprovedTechnologies());
+    reload();
+    if (typeof window !== 'undefined') {
+      window.addEventListener(STORAGE_EVENTS.approvedUpdated, reload);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(STORAGE_EVENTS.approvedUpdated, reload);
+      }
+    };
+  }, []);
+
+  const filteredTechnologies = approved.filter(tech => {
     const matchesCategory = selectedCategory === 'all' || tech.category === selectedCategory;
     const matchesSearch = tech.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          tech.description?.toLowerCase().includes(searchTerm.toLowerCase());

@@ -6,6 +6,8 @@ import Button from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/Badge';
 import { getTechnologyById } from '@/lib/mock';
+import { useEffect, useState } from 'react';
+import { STORAGE_EVENTS } from '@/lib/storage';
 import { formatDate } from '@/lib/utils';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { ethers } from 'ethers';
@@ -20,7 +22,20 @@ export default function TechnologyDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const { state } = useWeb3();
 
-  const technology = useMemo(() => getTechnologyById(params.tokenId), [params.tokenId]);
+  const [technology, setTechnology] = useState(() => getTechnologyById(params.tokenId));
+
+  useEffect(() => {
+    const reload = () => setTechnology(getTechnologyById(params.tokenId));
+    reload();
+    if (typeof window !== 'undefined') {
+      window.addEventListener(STORAGE_EVENTS.approvedUpdated, reload);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(STORAGE_EVENTS.approvedUpdated, reload);
+      }
+    };
+  }, [params.tokenId]);
 
   useEffect(() => {
     if (action === 'license') setIsLicensing(true);

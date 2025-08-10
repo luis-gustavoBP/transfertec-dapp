@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/Card'
 import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Technology, TechStatus, UserRole } from '@/types';
+import {
+  getPendingTechnologies,
+  getApprovedTechnologies,
+  approveTechnology,
+  rejectTechnology,
+  STORAGE_EVENTS,
+} from '@/lib/storage';
 import { formatAddress, formatDate } from '@/lib/utils';
 import { getNftContract } from '@/lib/contract';
 import { ethers } from 'ethers';
@@ -166,6 +173,8 @@ function RoleManager({ isOwner }: { isOwner: boolean }) {
 export default function AuinPage() {
   const { state } = useWeb3();
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'analytics' | 'manage' | 'licenses'>('pending');
+  const [pending, setPending] = useState<Technology[]>([]);
+  const [approvedLocal, setApprovedLocal] = useState<Technology[]>([]);
 
   const [isOwner, setIsOwner] = useState(false);
   const [ownerError, setOwnerError] = useState<string | null>(null);
@@ -191,6 +200,17 @@ export default function AuinPage() {
   const [loadingLicenses, setLoadingLicenses] = useState(false);
 
   useEffect(() => {
+    // Carregar filas locais e ouvir atualizações (apenas client-side)
+    const loadQueues = () => {
+      setPending(getPendingTechnologies());
+      setApprovedLocal(getApprovedTechnologies());
+    };
+    loadQueues();
+    if (typeof window !== 'undefined') {
+      window.addEventListener(STORAGE_EVENTS.pendingUpdated, loadQueues);
+      window.addEventListener(STORAGE_EVENTS.approvedUpdated, loadQueues);
+    }
+
     const checkOwner = async () => {
       setOwnerError(null);
       try {
@@ -214,6 +234,13 @@ export default function AuinPage() {
       }
     };
     if (state.isConnected) checkOwner();
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener(STORAGE_EVENTS.pendingUpdated, loadQueues);
+        window.removeEventListener(STORAGE_EVENTS.approvedUpdated, loadQueues);
+      }
+    };
   }, [state.isConnected, state.address]);
 
   const tabs = [
@@ -225,13 +252,16 @@ export default function AuinPage() {
   ];
 
   const handleApprove = (tokenId: string) => {
-    console.log('Aprovar tecnologia:', tokenId);
-    // Implementar lógica de aprovação
+    const approved = approveTechnology(tokenId);
+    if (approved) {
+      setPending(getPendingTechnologies());
+      setApprovedLocal(getApprovedTechnologies());
+    }
   };
 
   const handleReject = (tokenId: string) => {
-    console.log('Rejeitar tecnologia:', tokenId);
-    // Implementar lógica de rejeição
+    rejectTechnology(tokenId);
+    setPending(getPendingTechnologies());
   };
 
   const handleRegister = async () => {
@@ -307,7 +337,7 @@ export default function AuinPage() {
       </div>
 
       <div className="space-y-4">
-        {mockPendingTechnologies.map((tech) => (
+        {[...pending, ...mockPendingTechnologies].map((tech) => (
           <Card key={tech.tokenId}>
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -413,7 +443,7 @@ export default function AuinPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {mockApprovedTechnologies.map((tech) => (
+        {[...approvedLocal, ...mockApprovedTechnologies].map((tech) => (
           <Card key={tech.tokenId}>
             <CardHeader>
               <div className="flex items-start justify-between mb-2">

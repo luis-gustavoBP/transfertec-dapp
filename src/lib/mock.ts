@@ -1,4 +1,5 @@
 import { Technology, TechStatus } from '@/types';
+import { getApprovedTechnologies } from '@/lib/storage';
 
 export const mockTechnologies: Technology[] = [
   {
@@ -45,6 +46,13 @@ export const mockTechnologies: Technology[] = [
   },
 ];
 
+export function getAllApprovedTechnologies(): Technology[] {
+  // Itens aprovados locais + mocks (mocks ao final)
+  return [...getApprovedTechnologies(), ...mockTechnologies];
+}
+
 export function getTechnologyById(tokenId: string): Technology | undefined {
+  const fromStorage = getApprovedTechnologies().find((t) => t.tokenId === tokenId);
+  if (fromStorage) return fromStorage;
   return mockTechnologies.find((t) => t.tokenId === tokenId);
 }

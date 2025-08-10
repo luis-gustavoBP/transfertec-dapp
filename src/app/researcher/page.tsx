@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Technology, TechStatus, UserRole } from '@/types';
 import { formatDate, formatAddress } from '@/lib/utils';
+import { addPendingTechnology } from '@/lib/storage';
 import { getNftContract, getNftContractReadOnly } from '@/lib/contract';
 import { ethers } from 'ethers';
 
@@ -212,7 +213,22 @@ export default function ResearcherPage() {
         await tx.wait();
         setRegisterMsg('Tecnologia registrada no contrato (owner).');
       } else {
-        // Simular submissão para aprovação da AUIN
+        // Salvar como PENDENTE para AUIN aprovar (fila local)
+        const newTokenId = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        addPendingTechnology({
+          tokenId: newTokenId,
+          name,
+          category: category || 'outros',
+          description,
+          researchers: state.address ? [state.address] : [],
+          royaltyRate,
+          isExclusive: exclusive,
+          licensePrice: priceEth,
+          expirationDate: Math.floor(Date.now() / 1000) + 31536000,
+          ipfsHash: tokenURI.replace('ipfs://', ''),
+          status: TechStatus.PENDING,
+          images: ['/api/placeholder/400/300'],
+        });
         setRegisterMsg('Submissão enviada para AUIN (aguardando aprovação).');
       }
 
